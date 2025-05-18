@@ -2,6 +2,8 @@ import csv
 import numpy as np
 from scipy.interpolate import CubicSpline
 
+from typing import Tuple
+
 def load_waypoints(waypoint_file_path):
     waypoints = []
     try:
@@ -52,7 +54,7 @@ def spline_interpolate(waypoints, spline_num):
 
     return waypoints
 
-def get_grid_coordinates(x, y, map_origin, map_resolution) -> tuple[int, int]:
+def get_grid_coordinates(x, y, map_origin, map_resolution) -> Tuple[int, int]:
         """
         Convert world coordinates to grid coordinates
         Args:
@@ -68,7 +70,7 @@ def get_grid_coordinates(x, y, map_origin, map_resolution) -> tuple[int, int]:
 
         return grid_x, grid_y
     
-def get_world_coordinates(grid_x, grid_y, map_origin, map_resolution) -> tuple[float, float]:
+def get_world_coordinates(grid_x, grid_y, map_origin, map_resolution) -> Tuple[float, float]:
     """
     Convert grid coordinates to world coordinates
     Args:
