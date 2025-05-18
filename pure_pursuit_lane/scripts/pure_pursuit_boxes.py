@@ -20,7 +20,7 @@ class PurePursuit(Node):
     """
     def __init__(self):
         super().__init__('pure_pursuit_node')
-        self.sim = False
+        self.sim = True
 
         # Subscribe to odometry or pose
         if self.sim:
@@ -59,49 +59,73 @@ class PurePursuit(Node):
                 "name": "Box1",
                 "corners": [(-14.31, 8.65), (-5.67, 8.65), (-5.67, 5.03), (-14.31, 5.03)],
                 "speed": 5.0,
-                "lookahead": 4.0
+                "lookahead": 4.0,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : False
             },
             {
                 "name": "Box2",
                 "corners": [(-20.84, 8.2), (-14.31, 8.2), (-14.31, 5.03), (-20.84, 5.03)],
                 "speed": 5.0,
-                "lookahead": 2.0
+                "lookahead": 2.0,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : False
             },
             {
                 "name": "Box3",
                 "corners": [(-20.65, 4.85), (-17.6, 4.85), (-17.6, 0.75), (-20.65, 0.75)],
                 "speed": 4.75,
-                "lookahead": 2.0
+                "lookahead": 2.0,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : False
             },
             {
                 "name": "Box4",
                 "corners": [(-20.84, 0.7), (-16.67, 0.7), (-16.67, -4.3), (-20.84, -4.3)],
                 "speed": 3.5,
-                "lookahead": 1.0
+                "lookahead": 1.0,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : False
             },
             {
                 "name": "Box5",
                 "corners": [(-16.35, 5.14), (-4.01, 5.14), (-4.01, -0.56), (-16.35, -0.56)],
                 "speed": 4.75,
-                "lookahead": 3.0
+                "lookahead": 1.5,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : False
             },
             {
                 "name": "Box6",
                 "corners": [(-16.35, -0.56), (-6.0, -0.56), (-6.0, -4.23), (-16.35, -4.23)],
                 "speed": 5.0,
-                "lookahead": 4.0
+                "lookahead": 4.0,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : False
             },
             {
                 "name": "Box7",
                 "corners": [(-6.0, -0.93), (-1.14, -0.93), (-1.14, -4.23), (-6.0, -4.23)],
                 "speed": 4.5,
-                "lookahead": 2.0
+                "lookahead": 2.0,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : False
             },
             {
                 "name": "Box8",
                 "corners": [(-5.67, 8.65), (-1.1, 8.65), (-1.1, -0.93), (-5.67, -0.93)],
                 "speed": 4.5,
-                "lookahead": 1.8
+                "lookahead": 1.8,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : False
             },
         ]
 
@@ -213,47 +237,74 @@ class PurePursuit(Node):
             np.array([goal_x, goal_y])
         )[1]
 
+
+
         # 5) Compute steering from curvature
         curvature = 2.0 * goal_y_vehicle / (L ** 2)
         steering_angle = self.P * curvature
 
-        # 6) Lidar-based braking logic
-        if self.latest_scan is not None:
-            ranges = np.array(self.latest_scan.ranges)
-            num_points = len(ranges)
-            if num_points > 0:
-                center_idx = num_points // 2
-                window_size = 75  # look +/- 75 samples around the center
-                start_idx = max(0, center_idx - window_size)
-                end_idx = min(num_points, center_idx + window_size)
-
-                forward_ranges = ranges[start_idx:end_idx]
-                valid_ranges = forward_ranges[forward_ranges > 0.08]  # ignore <0.08
-
-                if valid_ranges.size > 0:
-                    min_forward_dist = np.min(valid_ranges)
-
-                    """
-                    # Basic logic to slow/stop if something is too close
-                    if min_forward_dist < 0.3:
-                        speed = 0.0
-                        #print("Obstacle < 0.3m => STOP")
-                    elif min_forward_dist < 1.0:
-                        speed = min(speed, 1.0)
-                        #print("Obstacle < 1.0m => limit speed to 1.0")
-                    elif min_forward_dist < 2.0:
-                        speed = min(speed, 2.0)
-                        #print("Obstacle < 2.0m => limit speed to 2.0")
-                    """       
+        speed = self.lidar_braking_logic(speed)
+                          
 
         # 7) Publish the drive command
         drive_msg = AckermannDriveStamped()
-        drive_msg.drive.speed = speed
+        drive_msg.drive.speed = speed/2.0
         drive_msg.drive.steering_angle = steering_angle
         self.drive_pub.publish(drive_msg)
 
         # 8) Publish a visualization marker showing the current lookahead radius
         self.publish_lookahead_marker(car_x, car_y, L)
+
+
+
+    def lidar_braking_logic(self, current_speed):
+        """Calculate speed adjustment based on Lidar scan data.
+        
+        Args:
+            current_speed (float): The current planned speed before braking logic
+            
+        Returns:
+            float: Adjusted speed based on obstacle proximity
+        """
+        if self.latest_scan is None:
+            return current_speed
+
+        ranges = np.array(self.latest_scan.ranges)
+        num_points = len(ranges)
+        if num_points == 0:
+            return current_speed
+
+        center_idx = num_points // 2
+        window_size = 75  # look +/- 75 samples around the center
+        start_idx = max(0, center_idx - window_size)
+        end_idx = min(num_points, center_idx + window_size)
+
+        forward_ranges = ranges[start_idx:end_idx]
+        valid_ranges = forward_ranges[forward_ranges > 0.08]  # ignore <0.08
+
+        if valid_ranges.size == 0:
+            return current_speed
+
+        min_forward_dist = np.min(valid_ranges)
+        new_speed = current_speed
+
+        # Braking logic with clear priority levels
+        if min_forward_dist < 0.5:
+            new_speed = 0.0
+            self.get_logger().warning("EMERGENCY STOP: Obstacle < 0.3m")
+        elif min_forward_dist < 1.0:
+            new_speed = min(current_speed, 1.0)
+            self.get_logger().info("Caution: Obstacle < 1.0m, limiting to 1.0m/s")
+        elif min_forward_dist < 2.0:
+            new_speed = min(current_speed, 2.0)
+            self.get_logger().info("Warning: Obstacle < 2.0m, limiting to 2.0m/s")
+
+        return new_speed
+    
+
+
+        
+    
 
     def publish_lookahead_marker(self, car_x, car_y, L):
         """
