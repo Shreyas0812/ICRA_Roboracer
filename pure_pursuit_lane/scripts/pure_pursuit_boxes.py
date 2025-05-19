@@ -137,7 +137,7 @@ class PurePursuit(Node):
                 "lookahead": 1.8,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False  # Enable overtaking in this box
+                "overtake" : True  # Enable overtaking in this box
             },
         ]
 
@@ -148,6 +148,8 @@ class PurePursuit(Node):
 
         # Timer to periodically publish markers (waypoints + boxes)
         self.timer = self.create_timer(1.0, self.publish_markers)
+        self.last_switch_time = self.get_clock().now()  # Initialization
+        self.switch_cooldown =  1.4
 
     def scan_callback(self, scan_msg):
         """Save the latest Lidar scan for dynamic braking logic."""
@@ -284,14 +286,7 @@ class PurePursuit(Node):
         self.active_path_marker_pub.publish(marker)
 
     def pose_callback(self, pose_msg):
-        # Initialize switching state tracking
-        if not hasattr(self, 'in_switching_event'):
-            self.in_switching_event = False
-            self.current_switching_box = None
-            self.last_switch_time = self.get_clock().now()
-            self.switch_cooldown = 2.0  # seconds
-
-        # Extract car position/orientation
+        # 1) Extract car position/orientation
         if self.sim:
             car_x = pose_msg.pose.pose.position.x
             car_y = pose_msg.pose.pose.position.y
@@ -305,70 +300,73 @@ class PurePursuit(Node):
         R = transform.Rotation.from_quat(quat)
         self.rot = R.as_matrix()
 
-        # Determine current zone
+        # 2) Determine current zone parameters
         speed = self.default_speed
         L = self.default_L
+        self.in_overtake_zone = False
         current_box = None
-        in_overtake_box = False
         
         for box in self.speed_zones:
             if self.is_point_in_box(car_x, car_y, box["corners"]):
                 speed = box["speed"]
                 L = box["lookahead"]
-                in_overtake_box = box["overtake"]
+                self.in_overtake_zone = box["overtake"]
                 current_box = box["name"]
-                
-                # Reset switching state when entering new box
-                if self.current_switching_box != current_box:
-                    self.in_switching_event = False
-                    self.current_switching_box = current_box
-                    if box["overtake"]:
-                        self.current_waypoints = 1  # Reset to primary path
                 break
 
-        # Apply switching event lookahead override
-        if self.in_switching_event and in_overtake_box:
-            L = 2.0
-            self.get_logger().info(f"SWITCHING ACTIVE | Lookahead locked at 2.0m")
-
-        # Obstacle detection
-        min_forward_dist = self.get_min_forward_distance()
-
-        # Lane switching logic with event handling
+        # 3) Check for active cooldown period
         current_time = self.get_clock().now()
-        time_since_switch = (current_time - self.last_switch_time).nanoseconds/1e9
+        if hasattr(self, 'switch_start_time'):
+            elapsed_time = (current_time - self.switch_start_time).nanoseconds / 1e9
+            if elapsed_time < self.switch_cooldown:
+                L = 2.0  # Force 2m lookahead during cooldown
+                self.get_logger().info(f"Cooldown active: {self.switch_cooldown - elapsed_time:.1f}s remaining")
+
+        # 4) Obstacle detection and lane switching logic
+        min_forward_dist = self.get_min_forward_distance()
         
-        if in_overtake_box:
-            if not self.in_switching_event and time_since_switch > self.switch_cooldown:
-                # Check if we need to initiate switch
-                if self.current_waypoints == 1 and min_forward_dist < 3.0:
-                    # Switch to alternate path
-                    self.current_waypoints = 2
-                    self.in_switching_event = True
-                    self.last_switch_time = current_time
-                    self.get_logger().info(
-                        f"SWITCHING EVENT STARTED in {current_box} - "
-                        f"Obstacle at {min_forward_dist:.2f}m"
+        if self.in_overtake_zone:
+            # Switch to alternate lane if obstacle detected
+            if self.current_waypoints == 1 and min_forward_dist < 3.0:
+                self.current_waypoints = 2
+                self.switch_start_time = current_time
+                L = 0.5  # Immediate lookahead override
+                self.get_logger().info(
+                    f"SWITCHED TO ALTERNATE in {current_box} - "
+                    f"Obstacle at {min_forward_dist:.2f}m | {self.switch_cooldown}s cooldown"
+                )
+            
+            # Check alternate lane conditions
+            elif self.current_waypoints == 2:
+                # Emergency switch back if alternate path blocked
+                if min_forward_dist < 2.0:
+                    self.current_waypoints = 1
+                    self.switch_start_time = current_time  # Reset cooldown timer
+                    L = 1.0  # Maintain 2m lookahead
+                    self.get_logger().warning(
+                        f"EMERGENCY SWITCH BACK in {current_box} - "
+                        f"Obstacle at {min_forward_dist:.2f}m | {self.switch_cooldown}s cooldown"
                     )
-            else:
-                # During switching event or cooldown
-                if self.current_waypoints == 2:
-                    # Check for obstacles in alternate path
-                    if min_forward_dist < 2.0:
+                
+                # Automatic switch back after cooldown
+                elif hasattr(self, 'switch_start_time'):
+                    elapsed_time = (current_time - self.switch_start_time).nanoseconds / 1e9
+                    if elapsed_time >= self.switch_cooldown:
                         self.current_waypoints = 1
-                        self.in_switching_event = False
-                        self.get_logger().warning(
-                            f"ABORTING SWITCH in {current_box} - "
-                            f"Alternate path blocked at {min_forward_dist:.2f}m"
-                        )
+                    self.get_logger().info(f"Cooldown expired - Returning to primary lane")
+        
+        # 5) Default to primary path outside overtake zones
         else:
-            # Not in overtake zone, reset to primary path
             if self.current_waypoints != 1:
                 self.current_waypoints = 1
-                self.in_switching_event = False
-                self.get_logger().info("Returning to PRIMARY path (not in overtake zone)")
+                if hasattr(self, 'switch_start_time'):
+                    del self.switch_start_time
+                self.get_logger().info("Exiting overtake zone - reset to primary path")
 
-        # 4) Find the lookahead waypoint based on current lane
+
+
+
+        # 6) Find lookahead waypoint based on current lane
         if self.current_waypoints == 1:
             goal_x, goal_y = self.get_goal_waypoint(car_x, car_y, L, self.kd_tree, self.waypoints)
         else:
@@ -377,27 +375,29 @@ class PurePursuit(Node):
         if goal_x is None or goal_y is None:
             return  # no valid waypoint found
 
-        # 5) Transform the goal point into vehicle frame
+        # 7) Transform goal to vehicle frame
         goal_y_vehicle = self.translate_point(
             np.array([car_x, car_y]), 
             np.array([goal_x, goal_y])
         )[1]
 
-        # 6) Compute steering from curvature
+        # 8) Compute steering from curvature
         curvature = 2.0 * goal_y_vehicle / (L ** 2)
         steering_angle = self.P * curvature
 
-        # 7) Apply braking logic regardless of lane
+        # 9) Apply dynamic braking
         speed = self.lidar_braking_logic(speed)
 
-        # 8) Publish the drive command
+        # 10) Publish drive command
         drive_msg = AckermannDriveStamped()
-        drive_msg.drive.speed = speed/2.0
+        drive_msg.drive.speed = speed
         drive_msg.drive.steering_angle = steering_angle
         self.drive_pub.publish(drive_msg)
 
-        # 9) Publish visualization markers
+        # 11) Visualize lookahead
         self.publish_lookahead_marker(car_x, car_y, L)
+
+
 
 
     def get_min_forward_distance(self):
@@ -413,7 +413,7 @@ class PurePursuit(Node):
             return float('inf')
 
         center_idx = num_points // 2
-        window_size = 25  # look +/- 75 samples around the center
+        window_size = 15  # look +/- 75 samples around the center
         start_idx = max(0, center_idx - window_size)
         end_idx = min(num_points, center_idx + window_size)
 
