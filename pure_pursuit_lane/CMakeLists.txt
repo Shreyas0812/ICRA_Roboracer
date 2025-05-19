@@ -25,6 +25,7 @@ ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
   scripts/pure_pursuit_boxes.py
+  scripts/record_manual_wp_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
