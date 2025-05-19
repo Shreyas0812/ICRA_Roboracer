@@ -413,7 +413,7 @@ class PurePursuit(Node):
             return float('inf')
 
         center_idx = num_points // 2
-        window_size = 75  # look +/- 75 samples around the center
+        window_size = 25  # look +/- 75 samples around the center
         start_idx = max(0, center_idx - window_size)
         end_idx = min(num_points, center_idx + window_size)
 
