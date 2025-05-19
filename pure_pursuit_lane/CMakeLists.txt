@@ -24,7 +24,7 @@ find_package(tf2_ros REQUIRED)
 ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
-  scripts/pure_pursuit_lane_node.py
+  scripts/pure_pursuit_boxes.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

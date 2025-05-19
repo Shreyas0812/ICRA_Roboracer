@@ -5,8 +5,8 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package="pure_pursuit_lane",
-            executable="pure_pursuit_lane_node.py",
-            name="pure_pursuit_lane_node",
+            executable="pure_pursuit_boxes.py",
+            name="pure_pursuit_boxes",
             output="screen",
 
         )
