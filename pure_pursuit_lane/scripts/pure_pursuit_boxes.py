@@ -9,6 +9,7 @@ from nav_msgs.msg import Odometry
 from scipy.spatial import KDTree, transform
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PoseStamped
+from shapely.geometry import Point, Polygon
 
 
 class PurePursuit(Node):
@@ -505,11 +506,9 @@ class PurePursuit(Node):
         corners = [top-left, top-right, bottom-right, bottom-left]
         We'll do a simple bounding-box check.
         """
-        xs = [c[0] for c in corners]
-        ys = [c[1] for c in corners]
-        if (min(xs) <= x <= max(xs)) and (min(ys) <= y <= max(ys)):
-            return True
-        return False
+        point = (x, y)
+        polygon = Polygon(corners)
+        return polygon.contains(Point(point))
 
     def create_point(self, x, y, z):
         from geometry_msgs.msg import Point
