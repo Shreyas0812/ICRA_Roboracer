@@ -17,7 +17,7 @@ class RecodManualWPNode(Node):
 
         self.declare_parameter('goal_pose_topic', '/goal_pose')
         self.declare_parameter('visualize_wp_topic', '/visualization/manual_waypoints')
-        self.declare_parameter('waypoint_file_path', '/home/shreyas/Documents/ESE6150_F1_Tenth/final-race-roboracer/src/sun_race/config/manual_wp.csv')
+        self.declare_parameter('waypoint_file_path', '/home/kabirpuri/f1ws/src/ICRA_Roboracer/pure_pursuit_lane/scripts/waypoints.csv')
 
         goal_pose_topic = self.get_parameter('goal_pose_topic').get_parameter_value().string_value
         visualize_wp_topic = self.get_parameter('visualize_wp_topic').get_parameter_value().string_value
