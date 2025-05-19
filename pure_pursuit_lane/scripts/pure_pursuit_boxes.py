@@ -52,6 +52,18 @@ class PurePursuit(Node):
         self.waypoints = csv_data[:, 0:2]
         self.kd_tree = KDTree(self.waypoints)
 
+        csv_data2 = np.loadtxt(
+            "./final_points_left.csv",
+            delimiter=",",
+            skiprows=0
+        )
+        self.waypoints2 = csv_data2[:, 0:2]
+        self.kd_tree2 = KDTree(self.waypoints2)
+
+        # Track which lane we're following (primary=1, alternative=2)
+        self.current_waypoints = 1
+        self.in_overtake_zone = False
+        
         # -- BOX DEFINITIONS --
         # Now each zone includes both "speed" and "lookahead" so we can override speed and L:
         self.speed_zones = [
@@ -62,7 +74,7 @@ class PurePursuit(Node):
                 "lookahead": 4.0,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False
+                "overtake" : True  # Enable overtaking in this box
             },
             {
                 "name": "Box2",
@@ -107,7 +119,7 @@ class PurePursuit(Node):
                 "lookahead": 4.0,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False
+                "overtake" : True  # Enable overtaking in this box
             },
             {
                 "name": "Box7",
@@ -125,13 +137,14 @@ class PurePursuit(Node):
                 "lookahead": 1.8,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False
+                "overtake" : False  # Enable overtaking in this box
             },
         ]
 
         # Create marker publishers
         self.marker_pub = self.create_publisher(MarkerArray, '/waypoints_markers', 10)
         self.lookahead_marker_pub = self.create_publisher(Marker, '/lookahead_marker', 10)
+        self.active_path_marker_pub = self.create_publisher(Marker, '/active_path_marker', 10)
 
         # Timer to periodically publish markers (waypoints + boxes)
         self.timer = self.create_timer(1.0, self.publish_markers)
@@ -150,11 +163,12 @@ class PurePursuit(Node):
         marker_id = 0
 
         # --- Waypoint Markers ---
+        # Primary waypoints in red
         for i, wp in enumerate(self.waypoints):
             marker = Marker()
             marker.header.frame_id = "map"
             marker.header.stamp = self.get_clock().now().to_msg()
-            marker.ns = "waypoints"
+            marker.ns = "waypoints_primary"
             marker.id = marker_id
             marker_id += 1
 
@@ -171,6 +185,29 @@ class PurePursuit(Node):
             marker.color.g = 0.0
             marker.color.b = 0.0
             marker_array.markers.append(marker)
+            
+        # Alternate waypoints in blue
+        for i, wp in enumerate(self.waypoints2):
+            marker = Marker()
+            marker.header.frame_id = "map"
+            marker.header.stamp = self.get_clock().now().to_msg()
+            marker.ns = "waypoints_alternate"
+            marker.id = marker_id
+            marker_id += 1
+
+            marker.type = Marker.SPHERE
+            marker.action = Marker.ADD
+            marker.pose.position.x = wp[0]
+            marker.pose.position.y = wp[1]
+            marker.pose.position.z = 0.1
+            marker.scale.x = 0.2
+            marker.scale.y = 0.2
+            marker.scale.z = 0.2
+            marker.color.a = 1.0 
+            marker.color.r = 0.0 
+            marker.color.g = 0.0
+            marker.color.b = 1.0
+            marker_array.markers.append(marker)
 
         # --- Box Markers (Line Strips) ---
         for box in self.speed_zones:
@@ -186,9 +223,16 @@ class PurePursuit(Node):
             line_strip.action = Marker.ADD
             line_strip.scale.x = 0.05  # thickness of lines
             line_strip.color.a = 1.0
-            line_strip.color.r = 0.0
-            line_strip.color.g = 1.0  # green lines
-            line_strip.color.b = 0.0
+            
+            # Color boxes differently based on overtake property
+            if box["overtake"]:
+                line_strip.color.r = 0.0
+                line_strip.color.g = 1.0  # green for overtaking zones
+                line_strip.color.b = 1.0  # with blue tint
+            else:
+                line_strip.color.r = 0.0
+                line_strip.color.g = 1.0  # green for regular zones
+                line_strip.color.b = 0.0
 
             # Close the loop by repeating the first corner at the end
             for corner in corners:
@@ -201,9 +245,53 @@ class PurePursuit(Node):
 
         # Publish all markers
         self.marker_pub.publish(marker_array)
+        
+        # Publish which path we're currently following
+        self.publish_active_path_marker()
+
+    def publish_active_path_marker(self):
+        """
+        Publish a text marker showing which path we're currently following
+        """
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = "active_path"
+        marker.id = 0
+        marker.type = Marker.TEXT_VIEW_FACING
+        marker.action = Marker.ADD
+        
+        # Position the text slightly above the map
+        marker.pose.position.x = -10.0
+        marker.pose.position.y = 0.0
+        marker.pose.position.z = 2.0
+        
+        marker.scale.z = 1.0  # Text size
+        
+        if self.current_waypoints == 1:
+            marker.text = "Following: PRIMARY PATH"
+            marker.color.r = 1.0
+            marker.color.g = 0.0
+            marker.color.b = 0.0
+        else:
+            marker.text = "Following: ALTERNATE PATH"
+            marker.color.r = 0.0
+            marker.color.g = 0.0
+            marker.color.b = 1.0
+            
+        marker.color.a = 1.0
+        
+        self.active_path_marker_pub.publish(marker)
 
     def pose_callback(self, pose_msg):
-        # 1) Extract car position/orientation
+        # Initialize switching state tracking
+        if not hasattr(self, 'in_switching_event'):
+            self.in_switching_event = False
+            self.current_switching_box = None
+            self.last_switch_time = self.get_clock().now()
+            self.switch_cooldown = 2.0  # seconds
+
+        # Extract car position/orientation
         if self.sim:
             car_x = pose_msg.pose.pose.position.x
             car_y = pose_msg.pose.pose.position.y
@@ -217,62 +305,112 @@ class PurePursuit(Node):
         R = transform.Rotation.from_quat(quat)
         self.rot = R.as_matrix()
 
-        # 2) Determine if we are inside any zone => override speed & lookahead
+        # Determine current zone
         speed = self.default_speed
         L = self.default_L
+        current_box = None
+        in_overtake_box = False
+        
         for box in self.speed_zones:
             if self.is_point_in_box(car_x, car_y, box["corners"]):
                 speed = box["speed"]
                 L = box["lookahead"]
+                in_overtake_box = box["overtake"]
+                current_box = box["name"]
+                
+                # Reset switching state when entering new box
+                if self.current_switching_box != current_box:
+                    self.in_switching_event = False
+                    self.current_switching_box = current_box
+                    if box["overtake"]:
+                        self.current_waypoints = 1  # Reset to primary path
                 break
 
-        # 3) Find the lookahead waypoint
-        goal_x, goal_y = self.get_goal_waypoint(car_x, car_y, L)
+        # Apply switching event lookahead override
+        if self.in_switching_event and in_overtake_box:
+            L = 2.0
+            self.get_logger().info(f"SWITCHING ACTIVE | Lookahead locked at 2.0m")
+
+        # Obstacle detection
+        min_forward_dist = self.get_min_forward_distance()
+
+        # Lane switching logic with event handling
+        current_time = self.get_clock().now()
+        time_since_switch = (current_time - self.last_switch_time).nanoseconds/1e9
+        
+        if in_overtake_box:
+            if not self.in_switching_event and time_since_switch > self.switch_cooldown:
+                # Check if we need to initiate switch
+                if self.current_waypoints == 1 and min_forward_dist < 3.0:
+                    # Switch to alternate path
+                    self.current_waypoints = 2
+                    self.in_switching_event = True
+                    self.last_switch_time = current_time
+                    self.get_logger().info(
+                        f"SWITCHING EVENT STARTED in {current_box} - "
+                        f"Obstacle at {min_forward_dist:.2f}m"
+                    )
+            else:
+                # During switching event or cooldown
+                if self.current_waypoints == 2:
+                    # Check for obstacles in alternate path
+                    if min_forward_dist < 2.0:
+                        self.current_waypoints = 1
+                        self.in_switching_event = False
+                        self.get_logger().warning(
+                            f"ABORTING SWITCH in {current_box} - "
+                            f"Alternate path blocked at {min_forward_dist:.2f}m"
+                        )
+        else:
+            # Not in overtake zone, reset to primary path
+            if self.current_waypoints != 1:
+                self.current_waypoints = 1
+                self.in_switching_event = False
+                self.get_logger().info("Returning to PRIMARY path (not in overtake zone)")
+
+        # 4) Find the lookahead waypoint based on current lane
+        if self.current_waypoints == 1:
+            goal_x, goal_y = self.get_goal_waypoint(car_x, car_y, L, self.kd_tree, self.waypoints)
+        else:
+            goal_x, goal_y = self.get_goal_waypoint(car_x, car_y, L, self.kd_tree2, self.waypoints2)
+            
         if goal_x is None or goal_y is None:
             return  # no valid waypoint found
 
-        # 4) Transform the goal point into vehicle frame
+        # 5) Transform the goal point into vehicle frame
         goal_y_vehicle = self.translate_point(
             np.array([car_x, car_y]), 
             np.array([goal_x, goal_y])
         )[1]
 
-
-
-        # 5) Compute steering from curvature
+        # 6) Compute steering from curvature
         curvature = 2.0 * goal_y_vehicle / (L ** 2)
         steering_angle = self.P * curvature
 
+        # 7) Apply braking logic regardless of lane
         speed = self.lidar_braking_logic(speed)
-                          
 
-        # 7) Publish the drive command
+        # 8) Publish the drive command
         drive_msg = AckermannDriveStamped()
         drive_msg.drive.speed = speed/2.0
         drive_msg.drive.steering_angle = steering_angle
         self.drive_pub.publish(drive_msg)
 
-        # 8) Publish a visualization marker showing the current lookahead radius
+        # 9) Publish visualization markers
         self.publish_lookahead_marker(car_x, car_y, L)
 
 
-
-    def lidar_braking_logic(self, current_speed):
-        """Calculate speed adjustment based on Lidar scan data.
-        
-        Args:
-            current_speed (float): The current planned speed before braking logic
-            
-        Returns:
-            float: Adjusted speed based on obstacle proximity
+    def get_min_forward_distance(self):
+        """
+        Get the minimum distance from LIDAR in forward-facing direction
         """
         if self.latest_scan is None:
-            return current_speed
+            return float('inf')  # No data yet, return "infinite" distance
 
         ranges = np.array(self.latest_scan.ranges)
         num_points = len(ranges)
         if num_points == 0:
-            return current_speed
+            return float('inf')
 
         center_idx = num_points // 2
         window_size = 75  # look +/- 75 samples around the center
@@ -283,29 +421,35 @@ class PurePursuit(Node):
         valid_ranges = forward_ranges[forward_ranges > 0.08]  # ignore <0.08
 
         if valid_ranges.size == 0:
-            return current_speed
+            return float('inf')
 
-        min_forward_dist = np.min(valid_ranges)
+        return np.min(valid_ranges)
+
+    def lidar_braking_logic(self, current_speed):
+        """Calculate speed adjustment based on Lidar scan data.
+        
+        Args:
+            current_speed (float): The current planned speed before braking logic
+            
+        Returns:
+            float: Adjusted speed based on obstacle proximity
+        """
+        min_forward_dist = self.get_min_forward_distance()
         new_speed = current_speed
 
         # Braking logic with clear priority levels
         if min_forward_dist < 0.5:
             new_speed = 0.0
-            self.get_logger().warning("EMERGENCY STOP: Obstacle < 0.3m")
-        elif min_forward_dist < 1.0:
-            new_speed = min(current_speed, 1.0)
-            self.get_logger().info("Caution: Obstacle < 1.0m, limiting to 1.0m/s")
-        elif min_forward_dist < 2.0:
-            new_speed = min(current_speed, 2.0)
-            self.get_logger().info("Warning: Obstacle < 2.0m, limiting to 2.0m/s")
+            self.get_logger().warning("EMERGENCY STOP: Obstacle < 0.5m")
+        # elif min_forward_dist < 1.0:
+        #     new_speed = min(current_speed, 1.0)
+        #     self.get_logger().info(f"Caution: Obstacle < 1.0m, limiting to 1.0m/s")
+        # elif min_forward_dist < 2.0:
+        #     new_speed = min(current_speed, 2.0)
+        #     self.get_logger().info(f"Warning: Obstacle < 2.0m, limiting to 2.0m/s")
 
         return new_speed
     
-
-
-        
-    
-
     def publish_lookahead_marker(self, car_x, car_y, L):
         """
         Publish a translucent sphere to represent the lookahead distance around the car.
@@ -336,23 +480,23 @@ class PurePursuit(Node):
 
         self.lookahead_marker_pub.publish(marker)
 
-    def get_goal_waypoint(self, car_x, car_y, look_ahead):
+    def get_goal_waypoint(self, car_x, car_y, look_ahead, kd_tree, waypoints):
         """
         Find a waypoint at least 'look_ahead' meters from (car_x, car_y).
         Returns (goal_x, goal_y) or (None, None) if not found.
         """
-        _, idx = self.kd_tree.query([car_x, car_y])
+        _, idx = kd_tree.query([car_x, car_y])
         # Search forward from idx
-        for i in range(idx, len(self.waypoints)):
-            dist = np.linalg.norm(self.waypoints[i] - np.array([car_x, car_y]))
+        for i in range(idx, len(waypoints)):
+            dist = np.linalg.norm(waypoints[i] - np.array([car_x, car_y]))
             if dist >= look_ahead:
-                return self.waypoints[i][0], self.waypoints[i][1]
+                return waypoints[i][0], waypoints[i][1]
 
         # Wrap around if necessary
         for i in range(idx):
-            dist = np.linalg.norm(self.waypoints[i] - np.array([car_x, car_y]))
+            dist = np.linalg.norm(waypoints[i] - np.array([car_x, car_y]))
             if dist >= look_ahead:
-                return self.waypoints[i][0], self.waypoints[i][1]
+                return waypoints[i][0], waypoints[i][1]
 
         return None, None
 
@@ -394,7 +538,7 @@ class PurePursuit(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    print("PurePursuit with Speed & Lookahead Zones + Lidar-based braking + Visualization")
+    print("PurePursuit with Overtaking Logic + Visualization")
     pure_pursuit_node = PurePursuit()
     rclpy.spin(pure_pursuit_node)
 
