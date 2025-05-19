@@ -61,12 +61,12 @@ def spline_interpolate(waypoints, spline_num):
 
 
 if __name__ == "__main__":
-    input_file = "/home/shreyas/Documents/ESE6150_F1_Tenth/final-race-roboracer/src/ICRA_Roboracer/pure_pursuit_lane/scripts/final_points_left.csv"
-    output_file = "/home/shreyas/Documents/ESE6150_F1_Tenth/final-race-roboracer/src/ICRA_Roboracer/pure_pursuit_lane/scripts/final_points_left_s.csv"
+    input_file = "/home/shreyas/Documents/ESE6150_F1_Tenth/final-race-roboracer/src/ICRA_Roboracer/pure_pursuit_lane/config/manual_wp.csv"
+    output_file = "/home/shreyas/Documents/ESE6150_F1_Tenth/final-race-roboracer/src/ICRA_Roboracer/pure_pursuit_lane/config/manual_wp_spline.csv"
 
     waypoints = load_waypoints(input_file)
 
-    spline_wp = spline_interpolate(waypoints, 306)
+    spline_wp = spline_interpolate(waypoints, 300)
 
     with open(output_file, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
