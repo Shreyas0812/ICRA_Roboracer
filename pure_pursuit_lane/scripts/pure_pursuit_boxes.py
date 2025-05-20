@@ -71,7 +71,7 @@ class PurePursuit(Node):
             {
                 "name": "Box1",
                 "corners": [(15.40, -10.13), (14.46, -11.99), (-0.88, -8.13), (0.13, -5.75)],
-                "speed": 5.0,
+                "speed": 6.0,
                 "lookahead": 4.0,
                 "kp": 1.0,
                 "kv" : 0.0,
@@ -80,44 +80,44 @@ class PurePursuit(Node):
             {
                 "name": "Box2",
                 "corners": [(0.13, -5.75),  (-0.88, -8.13), (-6.44, -6.32), (-6.18, -4.58)],
-                "speed": 5.0,
+                "speed": 1.5,
                 "lookahead": 2.0,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False
+                "overtake" : True
             },
             {
                 "name": "Box3",
                 "corners": [(-2.54, -5.21),(-6.18, -4.58), (-5.8, -1.0), (-2.34, -1.23)],
-                "speed": 4.75,
-                "lookahead": 2.0,
+                "speed": 3.0,
+                "lookahead": 2.5,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False
+                "overtake" : True
             },
             {
                 "name": "Box4",
                 "corners": [(-5.8, -1.0), (-5.87, 1.74), (7.63, 0.47), (7.40, -1.22)],
-                "speed": 3.5,
-                "lookahead": 1.0,
+                "speed": 6.0,
+                "lookahead": 4.0,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False
+                "overtake" : True
             },
             {
                 "name": "Box5",
                 "corners": [(7.40, -1.22), (7.63, 0.47), (21.80,-2.13), (21.26, -6.57)],
-                "speed": 4.75,
-                "lookahead": 1.5,
+                "speed": 1.5,
+                "lookahead": 0.3,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False
+                "overtake" : True
             },
             {
                 "name": "Box6",
                 "corners": [(21.26, -6.57), (20.11, -8.61), (10.37, -5.17), (11.18, -3.16)],
-                "speed": 5.0,
-                "lookahead": 4.0,
+                "speed": 4.5,
+                "lookahead": 3.0,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
@@ -125,17 +125,17 @@ class PurePursuit(Node):
             {
                 "name": "Box7",
                 "corners": [(11.63, -2.19), (10.37, -5.17), (2.35, -3.15), (2.66, -1.03)],
-                "speed": 4.5,
-                "lookahead": 2.0,
+                "speed": 5.0,
+                "lookahead": 3.0,
                 "kp": 1.0,
                 "kv" : 0.0,
-                "overtake" : False
+                "overtake" : True
             },
             {
                 "name": "Box8",
                 "corners": [(2.66, -1.03), (-2.11, -1.27), (-1.81, -4.96), (2.35, -3.15)],
-                "speed": 4.5,
-                "lookahead": 1.8,
+                "speed": 2.0,
+                "lookahead": 2.5,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
@@ -143,8 +143,8 @@ class PurePursuit(Node):
             {
                 "name": "Box9",
                 "corners": [(-1.81, -4.96), (0.39, -3.96), (6.80, -4.30), (6.42, -6.5)],
-                "speed": 4.5,
-                "lookahead": 1.8,
+                "speed": 4.0,
+                "lookahead": 2.7,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
@@ -152,8 +152,8 @@ class PurePursuit(Node):
             {
                 "name": "Box10",
                 "corners": [(6.80, -4.30), (6.42, -6.5), (10.07, -8.60), (11.54, -5.91)],
-                "speed": 4.5,
-                "lookahead": 1.8,
+                "speed": 3.0,
+                "lookahead": 1.5,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
@@ -161,8 +161,8 @@ class PurePursuit(Node):
             {
                 "name": "Box11",
                 "corners": [(10.07, -8.60), (11.54, -5.91), (14.68, -6.69), (13.86,-9.44)],
-                "speed": 4.5,
-                "lookahead": 1.8,
+                "speed": 5.5,
+                "lookahead": 2.5,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
@@ -170,8 +170,8 @@ class PurePursuit(Node):
             {
                 "name": "Box12",
                 "corners": [(14.68, -6.69), (13.86,-9.44),(18.93, -11.24), (19.75, -8.58)],
-                "speed": 4.5,
-                "lookahead": 1.8,
+                "speed": 2.0,
+                "lookahead": 1.0,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
@@ -179,8 +179,8 @@ class PurePursuit(Node):
             {
                 "name": "Box13",
                 "corners": [(15.40, -10.13), (14.46, -11.99),(19.62, -12.03), (18.93, -11.24)],
-                "speed": 4.5,
-                "lookahead": 1.8,
+                "speed": 2.5,
+                "lookahead": 2.0,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
@@ -349,7 +349,7 @@ class PurePursuit(Node):
         # 2) Determine current zone parameters
         speed = self.default_speed
         L = self.default_L
-        self.in_overtake_zone = False
+        self.in_overtake_zone = True
         current_box = None
         
         for box in self.speed_zones:
@@ -433,7 +433,7 @@ class PurePursuit(Node):
         steering_angle = self.P * curvature
 
         # 9) Apply dynamic braking
-        speed = self.lidar_braking_logic(speed) * 0
+        speed = self.lidar_braking_logic(speed) 
         
 
         # 10) Publish drive command
