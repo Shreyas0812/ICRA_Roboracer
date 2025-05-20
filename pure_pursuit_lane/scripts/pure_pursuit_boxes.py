@@ -70,7 +70,7 @@ class PurePursuit(Node):
         self.speed_zones = [
             {
                 "name": "Box1",
-                "corners": [(-14.31, 8.65), (-5.67, 8.65), (-5.67, 5.03), (-14.31, 5.03)],
+                "corners": [(15.40, -10.13), (14.46, -11.99), (-0.88, -8.13), (0.13, -5.75)],
                 "speed": 5.0,
                 "lookahead": 4.0,
                 "kp": 1.0,
@@ -79,7 +79,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box2",
-                "corners": [(-20.84, 8.2), (-14.31, 8.2), (-14.31, 5.03), (-20.84, 5.03)],
+                "corners": [(0.13, -5.75),  (-0.88, -8.13), (-6.44, -6.32), (-6.18, -4.58)],
                 "speed": 5.0,
                 "lookahead": 2.0,
                 "kp": 1.0,
@@ -88,7 +88,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box3",
-                "corners": [(-20.65, 4.85), (-17.6, 4.85), (-17.6, 0.75), (-20.65, 0.75)],
+                "corners": [(-2.54, -5.21),(-6.18, -4.58), (-5.8, -1.0), (-2.34, -1.23)],
                 "speed": 4.75,
                 "lookahead": 2.0,
                 "kp": 1.0,
@@ -97,7 +97,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box4",
-                "corners": [(-20.84, 0.7), (-16.67, 0.7), (-16.67, -4.3), (-20.84, -4.3)],
+                "corners": [(-5.8, -1.0), (-5.87, 1.74), (7.63, 0.47), (7.40, -1.22)],
                 "speed": 3.5,
                 "lookahead": 1.0,
                 "kp": 1.0,
@@ -106,7 +106,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box5",
-                "corners": [(-16.35, 5.14), (-4.01, 5.14), (-4.01, -0.56), (-16.35, -0.56)],
+                "corners": [(7.40, -1.22), (7.63, 0.47), (21.80,-2.13), (21.26, -6.57)],
                 "speed": 4.75,
                 "lookahead": 1.5,
                 "kp": 1.0,
@@ -115,7 +115,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box6",
-                "corners": [(-16.35, -0.56), (-6.0, -0.56), (-6.0, -4.23), (-16.35, -4.23)],
+                "corners": [(21.26, -6.57), (20.11, -8.61), (10.37, -5.17), (11.18, -3.16)],
                 "speed": 5.0,
                 "lookahead": 4.0,
                 "kp": 1.0,
@@ -124,7 +124,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box7",
-                "corners": [(-6.0, -0.93), (-1.14, -0.93), (-1.14, -4.23), (-6.0, -4.23)],
+                "corners": [(11.63, -2.19), (10.37, -5.17), (2.35, -3.15), (2.66, -1.03)],
                 "speed": 4.5,
                 "lookahead": 2.0,
                 "kp": 1.0,
@@ -133,7 +133,16 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box8",
-                "corners": [(-5.67, 8.65), (-1.1, 8.65), (-1.1, -0.93), (-5.67, -0.93)],
+                "corners": [(2.66, -1.03), (-2.11, -1.27), (-1.81, -4.96), (2.35, -3.15)],
+                "speed": 4.5,
+                "lookahead": 1.8,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : True  # Enable overtaking in this box
+            },
+            {
+                "name": "Box9",
+                "corners": [(-1.81, -4.96), (0.39, -3.96), (6.80, -4.30), (6.42, -6.5)],
                 "speed": 4.5,
                 "lookahead": 1.8,
                 "kp": 1.0,
@@ -313,6 +322,7 @@ class PurePursuit(Node):
                 L = box["lookahead"]
                 self.in_overtake_zone = box["overtake"]
                 current_box = box["name"]
+                print(current_box)
                 break
 
         # 3) Check for active cooldown period
@@ -387,7 +397,8 @@ class PurePursuit(Node):
         steering_angle = self.P * curvature
 
         # 9) Apply dynamic braking
-        speed = self.lidar_braking_logic(speed)
+        speed = self.lidar_braking_logic(speed) * 0
+        
 
         # 10) Publish drive command
         drive_msg = AckermannDriveStamped()
