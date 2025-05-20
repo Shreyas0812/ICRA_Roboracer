@@ -149,6 +149,42 @@ class PurePursuit(Node):
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
             },
+            {
+                "name": "Box10",
+                "corners": [(6.80, -4.30), (6.42, -6.5), (10.07, -8.60), (11.54, -5.91)],
+                "speed": 4.5,
+                "lookahead": 1.8,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : True  # Enable overtaking in this box
+            },
+            {
+                "name": "Box11",
+                "corners": [(10.07, -8.60), (11.54, -5.91), (14.68, -6.69), (13.86,-9.44)],
+                "speed": 4.5,
+                "lookahead": 1.8,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : True  # Enable overtaking in this box
+            },
+            {
+                "name": "Box12",
+                "corners": [(14.68, -6.69), (13.86,-9.44),(18.93, -11.24), (19.75, -8.58)],
+                "speed": 4.5,
+                "lookahead": 1.8,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : True  # Enable overtaking in this box
+            },
+            {
+                "name": "Box13",
+                "corners": [(15.40, -10.13), (14.46, -11.99),(19.62, -12.03), (18.93, -11.24)],
+                "speed": 4.5,
+                "lookahead": 1.8,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : True  # Enable overtaking in this box
+            },
         ]
 
         # Create marker publishers
