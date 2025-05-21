@@ -12,6 +12,9 @@ from geometry_msgs.msg import PoseStamped
 from shapely.geometry import Point, Polygon
 
 
+from geometry_msgs.msg import PointStamped
+
+
 class PurePursuit(Node):
     """ 
     Implement Pure Pursuit + rectangular speed & lookahead zones + Lidar-based braking.
@@ -38,11 +41,13 @@ class PurePursuit(Node):
         self.create_subscription(LaserScan, '/scan', self.scan_callback, 10)
         self.latest_scan = None
 
+        self.waypoint_pub = self.create_publisher(PointStamped, '/pure_pursuit/goal_waypoint', 10)
+
         # Default Pure Pursuit parameters
         # We'll now treat this as the "default" or fallback L if no zone overrides it
-        self.default_L = 1.5 #2.0
+        self.default_L = 0.8 #2.0
         self.P = 0.435
-        self.default_speed = 3.5
+        self.default_speed = 1.0
 
         # Load waypoints and build KD-tree
         csv_data = np.loadtxt(
@@ -107,8 +112,8 @@ class PurePursuit(Node):
             {
                 "name": "Box5",
                 "corners": [(7.40, -1.22), (7.63, 0.47), (11.45, -0.26), (11.31, -2.1)],
-                "speed": 1.5,
-                "lookahead": 0.3,
+                "speed": 2.0,
+                "lookahead": 1.5,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True
@@ -117,7 +122,7 @@ class PurePursuit(Node):
                 "name": "Box6",
                 "corners": [(11.31, -2.1),(11.45, -0.26), (21.80,-2.13), (21.26, -6.57)],
                 "speed": 1.5,
-                "lookahead": 0.3,
+                "lookahead": 1.2,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True
@@ -234,9 +239,9 @@ class PurePursuit(Node):
             marker.pose.position.x = wp[0]
             marker.pose.position.y = wp[1]
             marker.pose.position.z = 0.1
-            marker.scale.x = 0.2
-            marker.scale.y = 0.2
-            marker.scale.z = 0.2
+            marker.scale.x = 0.08
+            marker.scale.y = 0.08
+            marker.scale.z = 0.08
             marker.color.a = 1.0 
             marker.color.r = 1.0 
             marker.color.g = 0.0
@@ -257,9 +262,9 @@ class PurePursuit(Node):
             marker.pose.position.x = wp[0]
             marker.pose.position.y = wp[1]
             marker.pose.position.z = 0.1
-            marker.scale.x = 0.2
-            marker.scale.y = 0.2
-            marker.scale.z = 0.2
+            marker.scale.x = 0.08
+            marker.scale.y = 0.08
+            marker.scale.z = 0.08
             marker.color.a = 1.0 
             marker.color.r = 0.0 
             marker.color.g = 0.0
@@ -381,43 +386,43 @@ class PurePursuit(Node):
         # 4) Obstacle detection and lane switching logic
         min_forward_dist = self.get_min_forward_distance()
         
-        if self.in_overtake_zone:
-            # Switch to alternate lane if obstacle detected
-            if self.current_waypoints == 1 and min_forward_dist < 3.0:
-                self.current_waypoints = 2
-                self.switch_start_time = current_time
-                L = 0.5  # Immediate lookahead override
-                self.get_logger().info(
-                    f"SWITCHED TO ALTERNATE in {current_box} - "
-                    f"Obstacle at {min_forward_dist:.2f}m | {self.switch_cooldown}s cooldown"
-                )
+        # if self.in_overtake_zone:
+        #     # Switch to alternate lane if obstacle detected
+        #     if self.current_waypoints == 1 and min_forward_dist < 3.0:
+        #         self.current_waypoints = 2
+        #         self.switch_start_time = current_time
+        #         L = 0.5  # Immediate lookahead override
+        #         self.get_logger().info(
+        #             f"SWITCHED TO ALTERNATE in {current_box} - "
+        #             f"Obstacle at {min_forward_dist:.2f}m | {self.switch_cooldown}s cooldown"
+        #         )
             
-            # Check alternate lane conditions
-            elif self.current_waypoints == 2:
-                # Emergency switch back if alternate path blocked
-                if min_forward_dist < 2.0:
-                    self.current_waypoints = 1
-                    self.switch_start_time = current_time  # Reset cooldown timer
-                    L = 1.0  # Maintain 2m lookahead
-                    self.get_logger().warning(
-                        f"EMERGENCY SWITCH BACK in {current_box} - "
-                        f"Obstacle at {min_forward_dist:.2f}m | {self.switch_cooldown}s cooldown"
-                    )
+        #     # Check alternate lane conditions
+        #     elif self.current_waypoints == 2:
+        #         # Emergency switch back if alternate path blocked
+        #         if min_forward_dist < 2.0:
+        #             self.current_waypoints = 1
+        #             self.switch_start_time = current_time  # Reset cooldown timer
+        #             L = 1.0  # Maintain 2m lookahead
+        #             self.get_logger().warning(
+        #                 f"EMERGENCY SWITCH BACK in {current_box} - "
+        #                 f"Obstacle at {min_forward_dist:.2f}m | {self.switch_cooldown}s cooldown"
+        #             )
                 
-                # Automatic switch back after cooldown
-                elif hasattr(self, 'switch_start_time'):
-                    elapsed_time = (current_time - self.switch_start_time).nanoseconds / 1e9
-                    if elapsed_time >= self.switch_cooldown:
-                        self.current_waypoints = 1
-                    self.get_logger().info(f"Cooldown expired - Returning to primary lane")
+        #         # Automatic switch back after cooldown
+        #         elif hasattr(self, 'switch_start_time'):
+        #             elapsed_time = (current_time - self.switch_start_time).nanoseconds / 1e9
+        #             if elapsed_time >= self.switch_cooldown:
+        #                 self.current_waypoints = 1
+        #             self.get_logger().info(f"Cooldown expired - Returning to primary lane")
         
-        # 5) Default to primary path outside overtake zones
-        else:
-            if self.current_waypoints != 1:
-                self.current_waypoints = 1
-                if hasattr(self, 'switch_start_time'):
-                    del self.switch_start_time
-                self.get_logger().info("Exiting overtake zone - reset to primary path")
+        # # 5) Default to primary path outside overtake zones
+        # else:
+        #     if self.current_waypoints != 1:
+        #         self.current_waypoints = 1
+        #         if hasattr(self, 'switch_start_time'):
+        #             del self.switch_start_time
+        #         self.get_logger().info("Exiting overtake zone - reset to primary path")
 
 
 
@@ -430,6 +435,17 @@ class PurePursuit(Node):
             
         if goal_x is None or goal_y is None:
             return  # no valid waypoint found
+        
+        # Publish the goal waypoint as PointStamped
+        point_msg = PointStamped()
+        point_msg.header.frame_id = "map"
+        point_msg.header.stamp = self.get_clock().now().to_msg()
+        point_msg.point.x = goal_x
+        point_msg.point.y = goal_y
+        point_msg.point.z = 0.0
+
+        
+        self.waypoint_pub.publish(point_msg)
 
         # 7) Transform goal to vehicle frame
         goal_y_vehicle = self.translate_point(
