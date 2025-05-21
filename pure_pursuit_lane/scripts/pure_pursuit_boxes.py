@@ -106,7 +106,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box5",
-                "corners": [(7.40, -1.22), (7.63, 0.47), (21.80,-2.13), (21.26, -6.57)],
+                "corners": [(7.40, -1.22), (7.63, 0.47), (11.45, -0.26), (11.31, -2.1)],
                 "speed": 1.5,
                 "lookahead": 0.3,
                 "kp": 1.0,
@@ -115,6 +115,15 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box6",
+                "corners": [(11.31, -2.1),(11.45, -0.26), (21.80,-2.13), (21.26, -6.57)],
+                "speed": 1.5,
+                "lookahead": 0.3,
+                "kp": 1.0,
+                "kv" : 0.0,
+                "overtake" : True
+            },
+            {
+                "name": "Box7",
                 "corners": [(21.26, -6.57), (20.11, -8.61), (10.37, -5.17), (11.18, -3.16)],
                 "speed": 4.5,
                 "lookahead": 3.0,
@@ -123,7 +132,7 @@ class PurePursuit(Node):
                 "overtake" : True  # Enable overtaking in this box
             },
             {
-                "name": "Box7",
+                "name": "Box8",
                 "corners": [(11.63, -2.19), (10.37, -5.17), (2.35, -3.15), (2.66, -1.03)],
                 "speed": 5.0,
                 "lookahead": 3.0,
@@ -132,7 +141,7 @@ class PurePursuit(Node):
                 "overtake" : True
             },
             {
-                "name": "Box8",
+                "name": "Box9",
                 "corners": [(2.66, -1.03), (-2.11, -1.27), (-1.81, -4.96), (2.35, -3.15)],
                 "speed": 2.0,
                 "lookahead": 2.5,
@@ -141,7 +150,7 @@ class PurePursuit(Node):
                 "overtake" : True  # Enable overtaking in this box
             },
             {
-                "name": "Box9",
+                "name": "Box10",
                 "corners": [(-1.81, -4.96), (0.39, -3.96), (6.80, -4.30), (6.42, -6.5)],
                 "speed": 4.0,
                 "lookahead": 2.7,
@@ -150,7 +159,7 @@ class PurePursuit(Node):
                 "overtake" : True  # Enable overtaking in this box
             },
             {
-                "name": "Box10",
+                "name": "Box11",
                 "corners": [(6.80, -4.30), (6.42, -6.5), (10.07, -8.60), (11.54, -5.91)],
                 "speed": 3.0,
                 "lookahead": 1.5,
@@ -159,7 +168,7 @@ class PurePursuit(Node):
                 "overtake" : True  # Enable overtaking in this box
             },
             {
-                "name": "Box11",
+                "name": "Box12",
                 "corners": [(10.07, -8.60), (11.54, -5.91), (14.68, -6.69), (13.86,-9.44)],
                 "speed": 5.5,
                 "lookahead": 2.5,
@@ -168,7 +177,7 @@ class PurePursuit(Node):
                 "overtake" : True  # Enable overtaking in this box
             },
             {
-                "name": "Box12",
+                "name": "Box13",
                 "corners": [(14.68, -6.69), (13.86,-9.44),(18.93, -11.24), (19.75, -8.58)],
                 "speed": 2.0,
                 "lookahead": 1.0,
@@ -177,7 +186,7 @@ class PurePursuit(Node):
                 "overtake" : True  # Enable overtaking in this box
             },
             {
-                "name": "Box13",
+                "name": "Box14",
                 "corners": [(15.40, -10.13), (14.46, -11.99),(19.62, -12.03), (18.93, -11.24)],
                 "speed": 2.5,
                 "lookahead": 2.0,
