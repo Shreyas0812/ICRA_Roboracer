@@ -47,7 +47,7 @@ class PurePursuit(Node):
         # We'll now treat this as the "default" or fallback L if no zone overrides it
         self.default_L = 0.8 #2.0
         self.P = 0.435
-        self.default_speed = 1.0
+        self.default_speed = 1.5
 
         # Load waypoints and build KD-tree
         csv_data = np.loadtxt(
@@ -120,7 +120,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box6",
-                "corners": [(11.31, -2.1),(11.45, -0.26), (21.80,-2.13), (21.26, -6.57)],
+                "corners": [(12.94, -3.89),(11.45, -0.26), (21.80,-2.13), (21.26, -6.57)],
                 "speed": 1.5,
                 "lookahead": 1.2,
                 "kp": 1.0,
@@ -131,7 +131,7 @@ class PurePursuit(Node):
                 "name": "Box7",
                 "corners": [(21.26, -6.57), (20.11, -8.61), (10.37, -5.17), (11.18, -3.16)],
                 "speed": 4.5,
-                "lookahead": 3.0,
+                "lookahead": 2.0,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True  # Enable overtaking in this box
@@ -148,7 +148,7 @@ class PurePursuit(Node):
             {
                 "name": "Box9",
                 "corners": [(2.66, -1.03), (-2.11, -1.27), (-1.81, -4.96), (2.35, -3.15)],
-                "speed": 2.0,
+                "speed": 3.0,
                 "lookahead": 2.5,
                 "kp": 1.0,
                 "kv" : 0.0,
@@ -472,12 +472,13 @@ class PurePursuit(Node):
 
 
 
-
+    
     def get_min_forward_distance(self):
         """
         Get the minimum distance from LIDAR in forward-facing direction
         """
-        if self.latest_scan is None:
+        # If we don't have a lookahead point, fallback to center index
+        if not hasattr(self, 'latest_scan') or self.latest_scan is None:
             return float('inf')  # No data yet, return "infinite" distance
 
         ranges = np.array(self.latest_scan.ranges)
@@ -485,8 +486,33 @@ class PurePursuit(Node):
         if num_points == 0:
             return float('inf')
 
-        center_idx = num_points // 2
-        window_size = 15  # look +/- 75 samples around the center
+        # Try to use the lookahead point direction as the "center"
+        try:
+            # Get the last published goal waypoint (from pose_callback)
+            # We'll use the most recent goal_x, goal_y if available
+            if hasattr(self, 'goal_x') and hasattr(self, 'goal_y') and hasattr(self, 'car_x') and hasattr(self, 'car_y'):
+                dx = self.goal_x - self.car_x
+                dy = self.goal_y - self.car_y
+                angle_to_goal = np.arctan2(dy, dx)
+
+                # Lidar angle_min and angle_increment are in the scan message
+                angle_min = self.latest_scan.angle_min
+                angle_increment = self.latest_scan.angle_increment
+
+                # The car's heading is assumed to be 0 in the vehicle frame (forward)
+                # So angle_to_goal is in the map frame, but Lidar is in the car frame
+                # We'll assume the car is always aligned with the map x-axis for this calculation
+                # If you want to be more precise, you can transform angle_to_goal to the car frame
+
+                # Find the index in the scan that corresponds to angle_to_goal
+                center_idx = int(round((angle_to_goal - angle_min) / angle_increment))
+                center_idx = np.clip(center_idx, 0, num_points - 1)
+            else:
+                center_idx = num_points // 2
+        except Exception:
+            center_idx = num_points // 2
+
+        window_size = 15  # look +/- 15 samples around the center
         start_idx = max(0, center_idx - window_size)
         end_idx = min(num_points, center_idx + window_size)
 
@@ -497,6 +523,30 @@ class PurePursuit(Node):
             return float('inf')
 
         return np.min(valid_ranges)
+        # if self.latest_scan is None:
+        #     return float('inf')  # No data yet, return "infinite" distance
+
+        # ranges = np.array(self.latest_scan.ranges)
+        # num_points = len(ranges)
+        # if num_points == 0:
+        #     return float('inf')
+
+        # center_idx = num_points // 2
+        # window_size = 15  # look +/- 75 samples around the center
+        # start_idx = max(0, center_idx - window_size)
+        # end_idx = min(num_points, center_idx + window_size)
+
+        # forward_ranges = ranges[start_idx:end_idx]
+        # valid_ranges = forward_ranges[forward_ranges > 0.08]  # ignore <0.08
+
+        # if valid_ranges.size == 0:
+        #     return float('inf')
+
+        # return np.min(valid_ranges)
+    
+
+
+
 
     def lidar_braking_logic(self, current_speed):
         """Calculate speed adjustment based on Lidar scan data.
