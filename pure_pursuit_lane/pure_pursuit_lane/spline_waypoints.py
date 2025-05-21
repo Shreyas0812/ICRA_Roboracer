@@ -61,7 +61,7 @@ def spline_interpolate(waypoints, spline_num):
 
 
 if __name__ == "__main__":
-    input_file = "/home/shreyas/Documents/ESE6150_F1_Tenth/final-race-roboracer/src/ICRA_Roboracer/pure_pursuit_lane/config/manual_wp.csv"
+    input_file = "/home/shreyas/Documents/ESE6150_F1_Tenth/final-race-roboracer/src/ICRA_Roboracer/pure_pursuit_lane/config/manual_wp_edited.csv"
     output_file = "/home/shreyas/Documents/ESE6150_F1_Tenth/final-race-roboracer/src/ICRA_Roboracer/pure_pursuit_lane/config/manual_wp_spline.csv"
 
     waypoints = load_waypoints(input_file)
