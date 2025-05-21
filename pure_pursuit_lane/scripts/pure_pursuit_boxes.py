@@ -107,8 +107,8 @@ class PurePursuit(Node):
             {
                 "name": "Box5",
                 "corners": [(7.40, -1.22), (7.63, 0.47), (11.45, -0.26), (11.31, -2.1)],
-                "speed": 1.5,
-                "lookahead": 0.3,
+                "speed": 2.0,
+                "lookahead": 1.5,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True
