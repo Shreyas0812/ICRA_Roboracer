@@ -404,7 +404,18 @@ class PurePursuit(Node):
         right_idx, right_dist = self.get_range(range_data, -np.pi/2)
         left_idx, left_dist = self.get_range(range_data, np.pi/2)
 
-        self.run_gap_follow_func(dead_straight, range_data)
+        current_time = self.get_clock().now()
+        if not hasattr(self, 'last_gap_follow_time'):
+            self.last_gap_follow_time = current_time
+            self.run_gap_follow_func(dead_straight, range_data)
+        else:
+            elapsed = (current_time - self.last_gap_follow_time).nanoseconds / 1e9
+            if elapsed >= 1.0:
+                self.last_gap_follow_time = current_time
+                self.run_gap_follow_func(dead_straight, range_data)
+            else:
+                print("Time elapsed since last gap follow: ", elapsed)
+
 
     def publish_drive_gap_follow(self, speed, steering_angle):
         self.running_steering_angle = steering_angle
