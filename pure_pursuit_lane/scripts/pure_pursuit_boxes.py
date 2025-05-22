@@ -366,6 +366,8 @@ class PurePursuit(Node):
         # 2) Determine current zone parameters
         speed = self.default_speed
         L = self.default_L
+        kp = self.default_kp
+        kv = 0.0
         self.in_overtake_zone = True
         current_box = None
         
