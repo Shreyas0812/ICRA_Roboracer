@@ -462,16 +462,19 @@ class PurePursuit(Node):
 
         # 8) Compute steering from curvature
         curvature = 2.0 * goal_y_vehicle / (L ** 2)
-        steering_angle = kp * curvature
-        steering_angle = np.clip(steering_angle, -0.52, 0.52)
+        steering_angle = self.default_kp * curvature
 
         speed_multiplier = 1.0 - kv * np.abs(steering_angle)
         speed = speed * speed_multiplier
 
 
-        # 9) Apply dynamic braking
-        if current_box == "Box1":
-            speed = self.lidar_braking_logic(speed)
+        
+        # if current_box == "Box1":
+        speed, gap_follow = self.lidar_braking_logic(speed, L)
+
+
+
+       
         
 
         # 10) Publish drive command
@@ -520,7 +523,7 @@ class PurePursuit(Node):
 
 
 
-    def lidar_braking_logic(self, current_speed):
+    def lidar_braking_logic(self, current_speed, looah):
         """Calculate speed adjustment based on Lidar scan data.
         
         Args:
@@ -536,14 +539,18 @@ class PurePursuit(Node):
         if min_forward_dist < 0.5:
             new_speed = 0.0
             self.get_logger().warning("EMERGENCY STOP: Obstacle < 0.5m")
-        # elif min_forward_dist < 1.0:
-        #     new_speed = min(current_speed, 1.0)
-        #     self.get_logger().info(f"Caution: Obstacle < 1.0m, limiting to 1.0m/s")
-        # elif min_forward_dist < 2.0:
-        #     new_speed = min(current_speed, 2.0)
-        #     self.get_logger().info(f"Warning: Obstacle < 2.0m, limiting to 2.0m/s")
+    
+        elif min_forward_dist < looah - 1.0:
+            new_speed = min(current_speed, 1.0)
+            self.get_logger().info(f"Caution: Obstacle < 1.0m, limiting to 1.0m/s")
+            gap_follow = True
+        elif min_forward_dist < looah:
+            new_speed = min(current_speed, 2.0)
+            gap_follow = True
+            self.get_logger().info(f"Warning: Obstacle < 2.0m, limiting to 2.0m/s")
+            gap_follow = True
 
-        return new_speed
+        return new_speed, gap_follow
     
     def publish_lookahead_marker(self, car_x, car_y, L):
         """
