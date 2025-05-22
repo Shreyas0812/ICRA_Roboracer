@@ -24,7 +24,7 @@ class PurePursuit(Node):
     """
     def __init__(self):
         super().__init__('pure_pursuit_node')
-        self.sim = False
+        self.sim = True
 
         # Subscribe to odometry or pose
         if self.sim:
@@ -81,8 +81,8 @@ class PurePursuit(Node):
         self.speed_zones = [
             {
                 "name": "Box1",
-                "corners": [(15.40, -10.13), (14.46, -11.99), (-0.88, -8.13), (0.13, -5.75)],
-                "speed": 6.5,
+                "corners": [(15.40, -10.13), (14.46, -11.99), (1.75, -8.77), (2.48, -6.25)],
+                "speed": 8.0,
                 "lookahead": 3.0,
                 "kp": 1.0,
                 "kv" : 0.0,
@@ -90,7 +90,7 @@ class PurePursuit(Node):
             },
             {
                 "name": "Box2",
-                "corners": [(0.13, -5.75),  (-0.88, -8.13), (-6.44, -6.32), (-6.18, -4.58)],
+                "corners": [ (2.48, -6.25), (1.75, -8.77),  (-6.44, -6.32), (-6.18, -4.58)],
                 "speed": 1.0,
                 "lookahead": 3.0,
                 "kp": 1.0,
