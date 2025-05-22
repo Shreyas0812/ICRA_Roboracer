@@ -46,8 +46,11 @@ class PurePursuit(Node):
         # Default Pure Pursuit parameters
         # We'll now treat this as the "default" or fallback L if no zone overrides it
         self.default_L = 0.8 #2.0
-        self.P = 0.435
+        self.default_kp = 0.435
         self.default_speed = 1.5
+
+        self.kv = 0.0 
+
 
         # Load waypoints and build KD-tree
         csv_data = np.loadtxt(
@@ -363,6 +366,8 @@ class PurePursuit(Node):
         # 2) Determine current zone parameters
         speed = self.default_speed
         L = self.default_L
+        kp = self.default_kp
+        kv = 0.0
         self.in_overtake_zone = True
         current_box = None
         
@@ -370,6 +375,8 @@ class PurePursuit(Node):
             if self.is_point_in_box(car_x, car_y, box["corners"]):
                 speed = box["speed"]
                 L = box["lookahead"]
+                kv = box["kv"]
+                kp = box["kp"]
                 self.in_overtake_zone = box["overtake"]
                 current_box = box["name"]
                 print(current_box)
@@ -381,7 +388,7 @@ class PurePursuit(Node):
             elapsed_time = (current_time - self.switch_start_time).nanoseconds / 1e9
             if elapsed_time < self.switch_cooldown:
                 L = 2.0  # Force 2m lookahead during cooldown
-                self.get_logger().info(f"Cooldown active: {self.switch_cooldown - elapsed_time:.1f}s remaining")
+                # self.get_logger().info(f"Cooldown active: {self.switch_cooldown - elapsed_time:.1f}s remaining")
 
         # 4) Obstacle detection and lane switching logic
         min_forward_dist = self.get_min_forward_distance()
@@ -455,12 +462,19 @@ class PurePursuit(Node):
 
         # 8) Compute steering from curvature
         curvature = 2.0 * goal_y_vehicle / (L ** 2)
-        steering_angle = self.P * curvature
+        steering_angle = self.default_kp * curvature
 
-        # 9) Apply dynamic braking
+        speed_multiplier = 1.0 - kv * np.abs(steering_angle)
+        speed = speed * speed_multiplier
+
+
+        
         # if current_box == "Box1":
-        speed = self.lidar_braking_logic(speed, L)
+        speed, gap_follow = self.lidar_braking_logic(speed, L)
 
+
+
+       
         
 
         # 10) Publish drive command
@@ -525,14 +539,18 @@ class PurePursuit(Node):
         if min_forward_dist < 0.5:
             new_speed = 0.0
             self.get_logger().warning("EMERGENCY STOP: Obstacle < 0.5m")
+    
         elif min_forward_dist < looah - 1.0:
             new_speed = min(current_speed, 1.0)
             self.get_logger().info(f"Caution: Obstacle < 1.0m, limiting to 1.0m/s")
+            gap_follow = True
         elif min_forward_dist < looah:
             new_speed = min(current_speed, 2.0)
+            gap_follow = True
             self.get_logger().info(f"Warning: Obstacle < 2.0m, limiting to 2.0m/s")
+            gap_follow = True
 
-        return new_speed
+        return new_speed, gap_follow
     
     def publish_lookahead_marker(self, car_x, car_y, L):
         """
