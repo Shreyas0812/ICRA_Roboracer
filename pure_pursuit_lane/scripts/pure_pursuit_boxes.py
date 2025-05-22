@@ -51,6 +51,9 @@ class PurePursuit(Node):
 
         self.kv = 0.0 
 
+        self.prev_speed = 0.0
+        self.prev_steering_angle = 0.0
+
 
         self.run_gap_follow = False
 
@@ -230,7 +233,7 @@ class PurePursuit(Node):
         self.declare_parameter('speed_cap', 3.5)
         self.speed_cap = self.get_parameter('speed_cap').value
 
-        self.declare_parameter('speed_lower_cap', 2.0)
+        self.declare_parameter('speed_lower_cap', 0.5)
         self.speed_lower_cap = self.get_parameter('speed_lower_cap').value
 
         self.declare_parameter('speed_multiplier_g', 1.1)
@@ -248,7 +251,7 @@ class PurePursuit(Node):
 
         self.running_steering_angle = 0.0
         # gap follow parameters
-        self.declare_parameter('maxActionableDist', 3.0)
+        self.declare_parameter('maxActionableDist', 2.0)
         self.maxActionableDist = self.get_parameter('maxActionableDist').value
 
         ##########################################################################################################################
@@ -410,11 +413,11 @@ class PurePursuit(Node):
             self.run_gap_follow_func(dead_straight, range_data)
         else:
             elapsed = (current_time - self.last_gap_follow_time).nanoseconds / 1e9
-            if elapsed >= 1.0:
+            if elapsed >= 0.5:
                 self.last_gap_follow_time = current_time
                 self.run_gap_follow_func(dead_straight, range_data)
             else:
-                print("Time elapsed since last gap follow: ", elapsed)
+                self.get_logger().info(f"Time elapsed since last gap follow: {elapsed:.2f}s", throttle_duration_sec=0.1)
 
 
     def publish_drive_gap_follow(self, speed, steering_angle):
@@ -590,7 +593,7 @@ class PurePursuit(Node):
                 kp = box["kp"]
                 self.in_overtake_zone = box["overtake"]
                 current_box = box["name"]
-                print(current_box)
+                self.get_logger().info(f"IN {current_box} - speed: {speed:.2f} | L: {L:.2f} | kp: {kp:.2f} | kv: {kv:.2f}", throttle_duration_sec=1.0)
                 break
 
         # 3) Check for active cooldown period
@@ -681,9 +684,9 @@ class PurePursuit(Node):
 
         
         # if current_box == "Box1":
-        # speed, gap_follow = self.lidar_braking_logic(speed, L)
+        speed, gap_follow = self.lidar_braking_logic(speed, L, current_box)
 
-        gap_follow = False
+        # gap_follow = False
         if gap_follow:
             self.run_gap_follow = True
         else:
@@ -694,6 +697,11 @@ class PurePursuit(Node):
             drive_msg.drive.speed = speed
             drive_msg.drive.steering_angle = steering_angle
             self.drive_pub.publish(drive_msg)
+
+            # Save previous speed and steering angle
+            self.prev_speed = speed
+            self.prev_steering_angle = steering_angle
+
 
         # 11) Visualize lookahead
         self.publish_lookahead_marker(car_x, car_y, L)
@@ -735,7 +743,7 @@ class PurePursuit(Node):
 
 
 
-    def lidar_braking_logic(self, current_speed, looah):
+    def lidar_braking_logic(self, current_speed, looah, current_box):
         """Calculate speed adjustment based on Lidar scan data.
         
         Args:
@@ -748,20 +756,35 @@ class PurePursuit(Node):
         new_speed = current_speed
         gap_follow = False
 
+        gap_follow_boxes = ["Box1", "Box2", "Box3", "Box4", "Box5", "Box7", "Box8", "Box9", "Box13", "Box14"]
+
         # Braking logic with clear priority levels
         if min_forward_dist < 0.5:
             new_speed = 0.0
-            self.get_logger().warning("EMERGENCY STOP: Obstacle < 0.5m")
+            self.get_logger().warning("EMERGENCY STOP: Obstacle < 0.5m", throttle_duration_sec=0.8)
     
         elif min_forward_dist < looah - 1.0:
-            new_speed = min(current_speed, 1.0)
-            self.get_logger().info(f"Caution: Obstacle < 1.0m, limiting to 1.0m/s")
+        
+            self.get_logger().info(f"Caution: Obstacle < 1.0m, limiting to 1.0m/s", throttle_duration_sec=0.8)
             gap_follow = True
+
+            if current_box in gap_follow_boxes:
+                new_speed = current_speed
+                gap_follow = True
+            else:
+                new_speed = min(current_speed, 1.0)
+                gap_follow = False
+
+
         elif min_forward_dist < looah:
-            new_speed = min(current_speed, 2.0)
-            gap_follow = True
-            self.get_logger().info(f"Warning: Obstacle < 2.0m, limiting to 2.0m/s")
-            gap_follow = True
+            self.get_logger().info(f"Warning: Obstacle < 2.0m, limiting to 2.0m/s", throttle_duration_sec=0.8)
+            if current_box in gap_follow_boxes:
+                new_speed = current_speed
+                gap_follow = True
+            else:
+                new_speed = min(current_speed, 2.0)
+                gap_follow = False
+
 
         return new_speed, gap_follow
     
