@@ -463,6 +463,7 @@ class PurePursuit(Node):
         # 8) Compute steering from curvature
         curvature = 2.0 * goal_y_vehicle / (L ** 2)
         steering_angle = kp * curvature
+        steering_angle = np.clip(steering_angle, -0.52, 0.52)
 
         speed_multiplier = 1.0 - kv * np.abs(steering_angle)
         speed = speed * speed_multiplier
