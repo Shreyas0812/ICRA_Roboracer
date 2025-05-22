@@ -104,7 +104,7 @@ class PurePursuit(Node):
                 "name": "Box4",
                 "corners": [(-5.8, -1.0), (-5.87, 1.74), (7.63, 0.47), (7.40, -1.22)],
                 "speed": 6.0,
-                "lookahead": 4.0,
+                "lookahead": 2.7,
                 "kp": 1.0,
                 "kv" : 0.0,
                 "overtake" : True
@@ -458,7 +458,9 @@ class PurePursuit(Node):
         steering_angle = self.P * curvature
 
         # 9) Apply dynamic braking
-        speed = self.lidar_braking_logic(speed) 
+        if current_box == "Box1":
+            speed = self.lidar_braking_logic(speed)
+
         
 
         # 10) Publish drive command
@@ -477,42 +479,21 @@ class PurePursuit(Node):
         """
         Get the minimum distance from LIDAR in forward-facing direction
         """
-        # If we don't have a lookahead point, fallback to center index
-        if not hasattr(self, 'latest_scan') or self.latest_scan is None:
+        if self.latest_scan is None:
             return float('inf')  # No data yet, return "infinite" distance
 
         ranges = np.array(self.latest_scan.ranges)
+        # Apply a moving average filter to smooth the LIDAR ranges
+        window = 5
+        if len(ranges) >= window:
+            kernel = np.ones(window) / window
+            ranges = np.convolve(ranges, kernel, mode='same')
         num_points = len(ranges)
         if num_points == 0:
             return float('inf')
 
-        # Try to use the lookahead point direction as the "center"
-        try:
-            # Get the last published goal waypoint (from pose_callback)
-            # We'll use the most recent goal_x, goal_y if available
-            if hasattr(self, 'goal_x') and hasattr(self, 'goal_y') and hasattr(self, 'car_x') and hasattr(self, 'car_y'):
-                dx = self.goal_x - self.car_x
-                dy = self.goal_y - self.car_y
-                angle_to_goal = np.arctan2(dy, dx)
-
-                # Lidar angle_min and angle_increment are in the scan message
-                angle_min = self.latest_scan.angle_min
-                angle_increment = self.latest_scan.angle_increment
-
-                # The car's heading is assumed to be 0 in the vehicle frame (forward)
-                # So angle_to_goal is in the map frame, but Lidar is in the car frame
-                # We'll assume the car is always aligned with the map x-axis for this calculation
-                # If you want to be more precise, you can transform angle_to_goal to the car frame
-
-                # Find the index in the scan that corresponds to angle_to_goal
-                center_idx = int(round((angle_to_goal - angle_min) / angle_increment))
-                center_idx = np.clip(center_idx, 0, num_points - 1)
-            else:
-                center_idx = num_points // 2
-        except Exception:
-            center_idx = num_points // 2
-
-        window_size = 15  # look +/- 15 samples around the center
+        center_idx = num_points // 2
+        window_size = 15  # look +/- 75 samples around the center
         start_idx = max(0, center_idx - window_size)
         end_idx = min(num_points, center_idx + window_size)
 
@@ -523,26 +504,6 @@ class PurePursuit(Node):
             return float('inf')
 
         return np.min(valid_ranges)
-        # if self.latest_scan is None:
-        #     return float('inf')  # No data yet, return "infinite" distance
-
-        # ranges = np.array(self.latest_scan.ranges)
-        # num_points = len(ranges)
-        # if num_points == 0:
-        #     return float('inf')
-
-        # center_idx = num_points // 2
-        # window_size = 15  # look +/- 75 samples around the center
-        # start_idx = max(0, center_idx - window_size)
-        # end_idx = min(num_points, center_idx + window_size)
-
-        # forward_ranges = ranges[start_idx:end_idx]
-        # valid_ranges = forward_ranges[forward_ranges > 0.08]  # ignore <0.08
-
-        # if valid_ranges.size == 0:
-        #     return float('inf')
-
-        # return np.min(valid_ranges)
     
 
 
