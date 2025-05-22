@@ -458,8 +458,8 @@ class PurePursuit(Node):
         steering_angle = self.P * curvature
 
         # 9) Apply dynamic braking
-        if current_box == "Box1":
-            speed = self.lidar_braking_logic(speed)
+        # if current_box == "Box1":
+        speed = self.lidar_braking_logic(speed, L)
 
         
 
@@ -509,7 +509,7 @@ class PurePursuit(Node):
 
 
 
-    def lidar_braking_logic(self, current_speed):
+    def lidar_braking_logic(self, current_speed, looah):
         """Calculate speed adjustment based on Lidar scan data.
         
         Args:
@@ -525,12 +525,12 @@ class PurePursuit(Node):
         if min_forward_dist < 0.5:
             new_speed = 0.0
             self.get_logger().warning("EMERGENCY STOP: Obstacle < 0.5m")
-        # elif min_forward_dist < 1.0:
-        #     new_speed = min(current_speed, 1.0)
-        #     self.get_logger().info(f"Caution: Obstacle < 1.0m, limiting to 1.0m/s")
-        # elif min_forward_dist < 2.0:
-        #     new_speed = min(current_speed, 2.0)
-        #     self.get_logger().info(f"Warning: Obstacle < 2.0m, limiting to 2.0m/s")
+        elif min_forward_dist < looah - 1.0:
+            new_speed = min(current_speed, 1.0)
+            self.get_logger().info(f"Caution: Obstacle < 1.0m, limiting to 1.0m/s")
+        elif min_forward_dist < looah:
+            new_speed = min(current_speed, 2.0)
+            self.get_logger().info(f"Warning: Obstacle < 2.0m, limiting to 2.0m/s")
 
         return new_speed
     
