@@ -46,8 +46,11 @@ class PurePursuit(Node):
         # Default Pure Pursuit parameters
         # We'll now treat this as the "default" or fallback L if no zone overrides it
         self.default_L = 0.8 #2.0
-        self.P = 0.435
+        self.default_kp = 0.435
         self.default_speed = 1.5
+
+        self.kv = 0.0 
+
 
         # Load waypoints and build KD-tree
         csv_data = np.loadtxt(
@@ -370,6 +373,7 @@ class PurePursuit(Node):
             if self.is_point_in_box(car_x, car_y, box["corners"]):
                 speed = box["speed"]
                 L = box["lookahead"]
+                kv = box["kv"]
                 self.in_overtake_zone = box["overtake"]
                 current_box = box["name"]
                 print(current_box)
@@ -381,7 +385,7 @@ class PurePursuit(Node):
             elapsed_time = (current_time - self.switch_start_time).nanoseconds / 1e9
             if elapsed_time < self.switch_cooldown:
                 L = 2.0  # Force 2m lookahead during cooldown
-                self.get_logger().info(f"Cooldown active: {self.switch_cooldown - elapsed_time:.1f}s remaining")
+                # self.get_logger().info(f"Cooldown active: {self.switch_cooldown - elapsed_time:.1f}s remaining")
 
         # 4) Obstacle detection and lane switching logic
         min_forward_dist = self.get_min_forward_distance()
@@ -455,12 +459,15 @@ class PurePursuit(Node):
 
         # 8) Compute steering from curvature
         curvature = 2.0 * goal_y_vehicle / (L ** 2)
-        steering_angle = self.P * curvature
+        steering_angle = self.default_kp * curvature
+
+        speed_multiplier = 1.0 - kv * np.abs(steering_angle)
+        speed = speed * speed_multiplier
+
 
         # 9) Apply dynamic braking
         if current_box == "Box1":
             speed = self.lidar_braking_logic(speed)
-
         
 
         # 10) Publish drive command
