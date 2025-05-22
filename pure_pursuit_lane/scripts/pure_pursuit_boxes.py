@@ -534,6 +534,7 @@ class PurePursuit(Node):
         """
         min_forward_dist = self.get_min_forward_distance()
         new_speed = current_speed
+        gap_follow = False
 
         # Braking logic with clear priority levels
         if min_forward_dist < 0.5:
